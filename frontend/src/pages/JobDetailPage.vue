@@ -69,7 +69,6 @@ import { computed, onMounted, onUnmounted, ref } from 'vue'
 import { useRoute } from 'vue-router'
 import { useQuasar } from 'quasar'
 import { getJob, getJobStages } from '../api/client'
-import { acceptWithoutMean, meanLabel } from '../utils/qualityGate.js'
 
 const route = useRoute()
 const $q = useQuasar()

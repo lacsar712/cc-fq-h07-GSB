@@ -107,11 +107,6 @@ class QualityHistActor:
             return
         ctx = msg.context
         try:
-            from app.QualitySkipBypass import fake_quality_metrics, should_skip_quality
-            if should_skip_quality():
-                ctx.metrics = fake_quality_metrics(ctx.metrics)
-                await out_q.put(QueueMessage(ok=True, context=ctx))
-                return
             mean_q, per_pos, hist = self._compute(ctx.reads)
             ctx.metrics["mean_quality"] = mean_q
             ctx.metrics["per_position"] = per_pos
@@ -191,6 +186,14 @@ class ReportActor:
             return
         ctx = msg.context
         try:
+            # 阶段与指标一致：质量统计未实跑（缺平均质量等指标）时不得报告成功
+            missing = [
+                key
+                for key in ("mean_quality", "per_position", "quality_histogram")
+                if ctx.metrics.get(key) is None
+            ]
+            if missing:
+                raise ActorError(f"质量指标缺失，拒绝出报告: {', '.join(missing)}")
             report = {
                 "reads": ctx.metrics.get("reads"),
                 "mean_quality": ctx.metrics.get("mean_quality"),

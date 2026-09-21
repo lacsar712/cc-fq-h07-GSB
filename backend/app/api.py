@@ -5,7 +5,6 @@ from app.auth import authenticate_user, create_access_token, get_current_user, r
 from app.database import SessionLocal, get_db
 from app.models import Job, JobStage, Sample
 from app.pipeline.runner import create_job_stages, run_pipeline_sync
-from app.QualitySkipReadPath import sanitize_job_metrics
 from app.schemas import (
     HealthOut,
     JobCreate,
@@ -112,7 +111,7 @@ def get_job(job_id: int, _user: dict = Depends(get_current_user), db: Session = 
     )
     if not job:
         raise HTTPException(status_code=404, detail="作业不存在")
-    return sanitize_job_metrics(job)
+    return job
 
 
 @router.get("/jobs/{job_id}/stages", response_model=list[StageOut])
