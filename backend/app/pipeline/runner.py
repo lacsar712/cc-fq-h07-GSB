@@ -79,6 +79,19 @@ def run_pipeline_sync(db: Session, job: Job) -> Job:
 
     success, ctx, stage_status = asyncio.run(_run_chain(job.fastq_snapshot))
 
+    # 一致性兜底：成功作业必须已实跑质量统计，否则整体判失败，杜绝“缺平均质量却成功”
+    if success:
+        mean_q = ctx.metrics.get("mean_quality")
+        if not isinstance(mean_q, (int, float)) or isinstance(mean_q, bool):
+            success = False
+            ctx.error = "质量指标缺失：mean_quality 无值，作业不得标记成功"
+            ctx.failed_actor = QualityHistActor.name
+            stage_status[QualityHistActor.name]["status"] = "failed"
+            stage_status[QualityHistActor.name]["message"] = ctx.error
+            if stage_status[ReportActor.name]["status"] == "success":
+                stage_status[ReportActor.name]["status"] = "failed"
+                stage_status[ReportActor.name]["message"] = "上游质量指标缺失，报告作废"
+
     for name, info in stage_status.items():
         st = stage_by_name[name]
         st.status = info["status"]

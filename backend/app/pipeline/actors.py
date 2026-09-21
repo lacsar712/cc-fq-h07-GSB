@@ -107,11 +107,6 @@ class QualityHistActor:
             return
         ctx = msg.context
         try:
-            from app.QualitySkipBypass import fake_quality_metrics, should_skip_quality
-            if should_skip_quality():
-                ctx.metrics = fake_quality_metrics(ctx.metrics)
-                await out_q.put(QueueMessage(ok=True, context=ctx))
-                return
             mean_q, per_pos, hist = self._compute(ctx.reads)
             ctx.metrics["mean_quality"] = mean_q
             ctx.metrics["per_position"] = per_pos
@@ -191,6 +186,12 @@ class ReportActor:
             return
         ctx = msg.context
         try:
+            # 守卫：质量统计未实跑（无平均质量）时不得报告成功
+            mean_q = ctx.metrics.get("mean_quality")
+            if not isinstance(mean_q, (int, float)) or isinstance(mean_q, bool):
+                raise ActorError("缺少有效质量指标 mean_quality，质量统计未完成，不得生成报告")
+            if not ctx.metrics.get("per_position"):
+                raise ActorError("缺少 per_position 质量指标，质量统计未完成，不得生成报告")
             report = {
                 "reads": ctx.metrics.get("reads"),
                 "mean_quality": ctx.metrics.get("mean_quality"),
